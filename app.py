@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -15,7 +16,7 @@ from sentence_transformers import SentenceTransformer
 
 # -------------------- Streamlit Page Configuration --------------------
 st.set_page_config(
-    page_title="Cutting-Edge Social Media Analyzer",
+    page_title="Social Media Analyzer",
     page_icon="✨",
     layout="wide"
 )
@@ -85,7 +86,7 @@ if 'analysis_mode' not in st.session_state:
 
 
 # -------------------- Main Title --------------------
-st.title("✨ Cutting-Edge Social Media Sentiment & Trend Analyzer")
+st.title("✨Social Media Sentiment & Trend Analyzer")
 st.markdown("Unlock deeper insights with Emotion Analysis, Sarcasm Detection, and Side-by-Side Keyword Comparison.")
 
 # -------------------- User Inputs in Expander --------------------
@@ -203,27 +204,41 @@ def clean_text(text):
 
 @st.cache_data
 def run_full_analysis(_df, keyword):
-    """Performs all analyses on the dataframe."""
+    """Performs all analyses on the dataframe using batch processing."""
     _df['cleaned_text'] = _df['text'].apply(clean_text)
-    
+    texts = _df['cleaned_text'].tolist()
+
+    # 1. VADER Sentiment (still row-by-row, but it's fast)
     analyzer = SentimentIntensityAnalyzer()
     _df['sentiment_score'] = _df['cleaned_text'].apply(lambda x: analyzer.polarity_scores(x)['compound'])
-    
+
+    # 2. Sarcasm & Emotion Analysis (batch processing)
     if enable_emotion_sarcasm:
-        _df['sarcasm_label'] = _df['cleaned_text'].apply(lambda x: sarcasm_detector(x[:512])[0]['label'])
+        # Sarcasm
+        sarcasm_results = sarcasm_detector(texts, truncation=True, max_length=512)
+        _df['sarcasm_label'] = [res['label'] for res in sarcasm_results]
+        
+        # Adjust sentiment
         _df['adjusted_sentiment_score'] = _df.apply(
             lambda row: -row['sentiment_score'] if row['sarcasm_label'] == 'sarcastic' and row['sentiment_score'] != 0 else row['sentiment_score'],
             axis=1
         )
         sentiment_col = 'adjusted_sentiment_score'
+        
+        # Emotion
+        emotion_results = emotion_classifier(texts, truncation=True, max_length=512)
+        # Process emotion results into a DataFrame
+        emotion_data = []
+        for result_set in emotion_results:
+            emotion_scores = {res['label']: res['score'] for res in result_set}
+            emotion_data.append(emotion_scores)
+        emotion_df = pd.DataFrame(emotion_data, index=_df.index)
+        _df = pd.concat([_df, emotion_df], axis=1)
+
     else:
         sentiment_col = 'sentiment_score'
 
     _df['sentiment_label'] = _df[sentiment_col].apply(lambda x: 'Positive' if x > 0.05 else ('Negative' if x < -0.05 else 'Neutral'))
-
-    if enable_emotion_sarcasm:
-        emotions = _df['cleaned_text'].apply(lambda x: pd.Series({e['label']: e['score'] for e in emotion_classifier(x[:512])[0]}))
-        _df = pd.concat([_df, emotions], axis=1)
 
     return _df
 
@@ -341,15 +356,22 @@ def perform_dynamic_topic_modeling(_topic_model, _df, keyword):
 
 @st.cache_data
 def analyze_entities_sentiment(_df, keyword):
+    """Analyzes sentiment for named entities using batch processing."""
     entity_sentiments = {}
     sentiment_col = 'adjusted_sentiment_score' if 'adjusted_sentiment_score' in _df.columns else 'sentiment_score'
-    for _, row in _df.iterrows():
-        doc = nlp(row['text'])
+    
+    # Use nlp.pipe for efficient batch processing
+    docs = nlp.pipe(_df['text'])
+    
+    # Iterate through docs and dataframe rows simultaneously
+    for doc, sentiment_score in zip(docs, _df[sentiment_col]):
         for ent in doc.ents:
             if ent.label_ in ["ORG", "PERSON", "PRODUCT", "GPE"]:
                 entity_text = ent.text.strip().lower()
-                if entity_text not in entity_sentiments: entity_sentiments[entity_text] = []
-                entity_sentiments[entity_text].append(row[sentiment_col])
+                if entity_text not in entity_sentiments:
+                    entity_sentiments[entity_text] = []
+                entity_sentiments[entity_text].append(sentiment_score)
+
     avg_entity_sentiments = {e: sum(s)/len(s) for e, s in entity_sentiments.items() if len(s) > 2}
     if not avg_entity_sentiments: return pd.DataFrame()
     return pd.DataFrame(sorted(avg_entity_sentiments.items(), key=lambda item: item[1], reverse=True), columns=['Entity', 'Average_Sentiment'])
@@ -401,7 +423,6 @@ if st.session_state.get('analysis_run', False):
             display_dashboard(st.session_state.keyword2, st.session_state.df2)
     else:
         display_dashboard(st.session_state.keyword1, st.session_state.df1)
-
 
 # -------------------- Footer --------------------
 st.markdown("---")

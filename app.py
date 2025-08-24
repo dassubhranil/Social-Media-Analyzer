@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -83,14 +82,16 @@ if 'keyword2' not in st.session_state:
     st.session_state.keyword2 = "AMD"
 if 'analysis_mode' not in st.session_state:
     st.session_state.analysis_mode = "Single Keyword"
+if 'expander_state' not in st.session_state:
+    st.session_state.expander_state = True
 
 
 # -------------------- Main Title --------------------
-st.title("✨Social Media Sentiment & Trend Analyzer")
+st.title("✨ Social Media Sentiment & Trend Analyzer")
 st.markdown("Unlock deeper insights with Emotion Analysis, Sarcasm Detection, and Side-by-Side Keyword Comparison.")
 
 # -------------------- User Inputs in Expander --------------------
-with st.expander("⚙️ Settings & Options", expanded=True):
+with st.expander("⚙️ Settings & Options", expanded=st.session_state.expander_state):
     st.header("Search Parameters")
     
     analysis_mode = st.radio(
@@ -402,6 +403,7 @@ if start_analysis_button:
     st.session_state.analysis_mode = analysis_mode
     st.session_state.keyword1 = keyword1
     st.session_state.keyword2 = keyword2
+    st.session_state.expander_state = False # Collapse the expander
 
     with st.spinner(f"Fetching {num_posts} items for '{keyword1}'..."):
         st.session_state.df1 = fetch_reddit_data(reddit, keyword1, num_posts)

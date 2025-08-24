@@ -78,7 +78,7 @@ if 'analysis_mode' not in st.session_state:
 
 
 # -------------------- Main Title --------------------
-st.title("✨ Social Media Sentiment & Trend Analyzer")
+st.title("✨Social Media Sentiment & Trend Analyzer")
 st.markdown("Unlock deeper insights with Emotion Analysis, Sarcasm Detection, and Side-by-Side Keyword Comparison.")
 
 # -------------------- Sidebar for User Inputs --------------------
@@ -120,31 +120,34 @@ with st.sidebar:
         reset_button = st.button("Reset")
 
     st.markdown("---")
-    st.info("This app uses Reddit credentials stored securely via Streamlit Secrets.", icon="🔐")
+    st.info("This app uses Reddit credentials stored securely via Streamlit Secrets.", icon="�")
 
 
 # -------------------- Model Loading (Cached) --------------------
 
 @st.cache_resource
 def load_spacy_model():
-    """Loads the spaCy model."""
-    try:
-        return spacy.load("en_core_web_sm")
-    except OSError:
-        st.info("Downloading spaCy model...")
-        spacy.cli.download("en_core_web_sm")
-        return spacy.load("en_core_web_sm")
+    """Loads the spaCy model from the installed package."""
+    return spacy.load("en_core_web_sm")
 
 @st.cache_resource
 def load_transformer_pipelines():
     """Loads Hugging Face transformer models for emotion and sarcasm."""
     emotion_classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
     sarcasm_detector = pipeline("text-classification", model="helinivan/english-sarcasm-detector")
-    return emotion_classifier, sarcasm_detector
+    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+    return emotion_classifier, sarcasm_detector, embedding_model
 
 nlp = load_spacy_model()
 if enable_emotion_sarcasm:
-    emotion_classifier, sarcasm_detector = load_transformer_pipelines()
+    emotion_classifier, sarcasm_detector, embedding_model = load_transformer_pipelines()
+else:
+    # Still need the embedding model for BERTopic
+    @st.cache_resource
+    def load_embedding_model():
+        return SentenceTransformer("all-MiniLM-L6-v2")
+    embedding_model = load_embedding_model()
+
 
 # -------------------- Helper Functions --------------------
 
@@ -292,11 +295,22 @@ def display_dashboard(keyword, df):
 
     with tab_map["Word Clouds"]:
         selected_sentiment = st.selectbox(f"Select Sentiment for '{keyword}'", ['Positive', 'Negative', 'Neutral'], key=f"wc_select_{keyword}")
+        
+        # Add a theme-aware title using st.subheader
+        st.subheader(f"Word Cloud for '{selected_sentiment}' Sentiment")
+
         text_data = " ".join(df_analyzed[df_analyzed['sentiment_label'] == selected_sentiment]['cleaned_text'].tolist())
         if text_data:
             custom_stopwords = set(STOPWORDS); custom_stopwords.add(keyword.lower())
             wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=custom_stopwords, colormap='viridis').generate(text_data)
-            fig_wc, ax = plt.subplots(); ax.imshow(wordcloud, interpolation='bilinear'); ax.axis("off"); st.pyplot(fig_wc)
+            
+            # Create the figure with a specific size
+            fig_wc, ax = plt.subplots(figsize=(10, 5))
+            ax.imshow(wordcloud, interpolation='bilinear')
+            ax.axis("off")
+            
+            # Display the plot, making it responsive
+            st.pyplot(fig_wc, use_container_width=True)
         else:
             st.warning(f"No text data available for '{selected_sentiment}' sentiment in '{keyword}' posts.")
 
@@ -323,6 +337,13 @@ def display_dashboard(keyword, df):
                 topics_over_time = perform_dynamic_topic_modeling(topic_model, df_analyzed, keyword)
             if topics_over_time is not None:
                 fig_dtm = topic_model.visualize_topics_over_time(topics_over_time, top_n_topics=10)
+                # Update tooltip for better readability in both light and dark modes
+                fig_dtm.update_layout(
+                    hoverlabel=dict(
+                        bgcolor="lightgrey",
+                        font_color="black"
+                    )
+                )
                 st.plotly_chart(fig_dtm, use_container_width=True, key=f"dtm_plot_{keyword}")
             else:
                 st.warning("Could not generate dynamic topic model.")
@@ -334,6 +355,7 @@ def perform_topic_modeling(_df, keyword):
     if len(docs) < 15: return None, pd.DataFrame()
     try:
         topic_model = BERTopic(
+            embedding_model=embedding_model, # Use the pre-loaded model
             vectorizer_model=CountVectorizer(stop_words="english"), 
             calculate_probabilities=True, 
             verbose=False
@@ -346,7 +368,8 @@ def perform_topic_modeling(_df, keyword):
 def perform_dynamic_topic_modeling(_topic_model, _df, keyword):
     if _topic_model is None or _df.empty: return None
     try:
-        return _topic_model.topics_over_time(_df['cleaned_text'].tolist(), _df['timestamp'].tolist(),nr_bins=20)
+        # Group timestamps into 20 bins to improve performance
+        return _topic_model.topics_over_time(_df['cleaned_text'].tolist(), _df['timestamp'].tolist(), nr_bins=20)
     except Exception: return None
 
 @st.cache_data
@@ -420,7 +443,6 @@ if st.session_state.analysis_run:
             display_dashboard(st.session_state.keyword2, st.session_state.df2)
     else:
         display_dashboard(st.session_state.keyword1, st.session_state.df1)
-
 
 # -------------------- Footer --------------------
 st.markdown("---")

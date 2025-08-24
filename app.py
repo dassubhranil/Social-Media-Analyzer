@@ -11,9 +11,10 @@ import re
 import spacy
 from datetime import datetime
 from transformers import pipeline
+
 # -------------------- Streamlit Page Configuration --------------------
 st.set_page_config(
-    page_title=" Social Media Analyzer",
+    page_title="Social Media Analyzer",
     page_icon="✨",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -103,10 +104,10 @@ with st.sidebar:
     num_posts = st.slider("Number of items to analyze (per keyword)", 50, 1000, 250)
 
     st.markdown("---")
-    st.header("💡 Advanced Features")
+    st.header("💡 Advanced Features", help="Uses advanced models and may be slower.")
     enable_ner = st.toggle("Entity Sentiment Analysis (NER)", value=True)
     enable_dtm = st.toggle("Dynamic Topic Modeling (DTM)", value=True)
-    enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True, help="Uses advanced models and may be slower.")
+    enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True)
     
     st.markdown("---")
     
@@ -132,11 +133,18 @@ def load_transformer_pipelines():
     """Loads Hugging Face transformer models for emotion and sarcasm."""
     emotion_classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
     sarcasm_detector = pipeline("text-classification", model="helinivan/english-sarcasm-detector")
-    return emotion_classifier, sarcasm_detector
+    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+    return emotion_classifier, sarcasm_detector, embedding_model
 
 nlp = load_spacy_model()
 if enable_emotion_sarcasm:
-    emotion_classifier, sarcasm_detector = load_transformer_pipelines()
+    emotion_classifier, sarcasm_detector, embedding_model = load_transformer_pipelines()
+else:
+    # Still need the embedding model for BERTopic
+    @st.cache_resource
+    def load_embedding_model():
+        return SentenceTransformer("all-MiniLM-L6-v2")
+    embedding_model = load_embedding_model()
 
 
 # -------------------- Helper Functions --------------------
@@ -239,104 +247,105 @@ def display_dashboard(keyword, df):
         df_analyzed = run_full_analysis(df.copy(), keyword)
         topic_model, topic_info = perform_topic_modeling(df_analyzed, keyword)
 
-    # --- Display Results ---
-    st.subheader("Key Metrics")
-    sentiment_col = 'adjusted_sentiment_score' if enable_emotion_sarcasm else 'sentiment_score'
-    avg_sentiment = df_analyzed[sentiment_col].mean()
-    sentiment_counts = df_analyzed['sentiment_label'].value_counts()
-    
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Items", len(df_analyzed))
-    c2.metric("Avg. Sentiment", f"{avg_sentiment:.2f}")
-    c3.metric("Dominant Sentiment", sentiment_counts.idxmax())
-    if topic_model:
-        c4.metric("Topics Discovered", len(topic_info[topic_info.Topic != -1]))
-    else:
-        c4.metric("Topics Discovered", 0)
-    st.markdown("---")
-
-    # Setup tabs
-    tabs_list = ["Sentiment Analysis"]
-    if enable_emotion_sarcasm: tabs_list.append("Emotion & Sarcasm")
-    tabs_list.extend(["Word Clouds", "Topic Modeling"])
-    if enable_ner: tabs_list.append("Entity Analysis")
-    if enable_dtm and topic_model: tabs_list.append("Topic Evolution")
-    
-    tabs = st.tabs(tabs_list)
-    tab_map = {name: tab for name, tab in zip(tabs_list, tabs)}
-
-    with tab_map["Sentiment Analysis"]:
-        fig_pie = px.pie(sentiment_counts, names=sentiment_counts.index, values=sentiment_counts.values, title='Sentiment Proportions', color_discrete_map={'Positive':'green', 'Negative':'red', 'Neutral':'grey'})
-        st.plotly_chart(fig_pie, use_container_width=True, key=f"sentiment_pie_{keyword}")
-
-    if "Emotion & Sarcasm" in tab_map:
-        with tab_map["Emotion & Sarcasm"]:
-            st.subheader("Emotion & Sarcasm Analysis")
-            col1, col2 = st.columns(2)
-            with col1:
-                emotion_cols = ['anger', 'disgust', 'fear', 'joy', 'neutral', 'sadness', 'surprise']
-                emotion_means = df_analyzed[emotion_cols].mean().sort_values(ascending=False)
-                fig_emotion = px.bar(emotion_means, x=emotion_means.index, y=emotion_means.values, title="Average Emotion Distribution", labels={'x': 'Emotion', 'y': 'Average Score'})
-                st.plotly_chart(fig_emotion, use_container_width=True, key=f"emotion_bar_{keyword}")
-            with col2:
-                sarcasm_counts = df_analyzed['sarcasm_label'].value_counts()
-                fig_sarcasm = px.pie(sarcasm_counts, names=sarcasm_counts.index, values=sarcasm_counts.values, title='Sarcasm Detection')
-                st.plotly_chart(fig_sarcasm, use_container_width=True, key=f"sarcasm_pie_{keyword}")
-
-    with tab_map["Word Clouds"]:
-        selected_sentiment = st.selectbox(f"Select Sentiment for '{keyword}'", ['Positive', 'Negative', 'Neutral'], key=f"wc_select_{keyword}")
+    # Wrap dashboard content in a scrollable container
+    with st.container(height=1000):
+        # --- Display Results ---
+        st.subheader("Key Metrics")
+        sentiment_col = 'adjusted_sentiment_score' if enable_emotion_sarcasm else 'sentiment_score'
+        avg_sentiment = df_analyzed[sentiment_col].mean()
+        sentiment_counts = df_analyzed['sentiment_label'].value_counts()
         
-        # Add a theme-aware title using st.subheader
-        st.subheader(f"Word Cloud for '{selected_sentiment}' Sentiment")
-
-        text_data = " ".join(df_analyzed[df_analyzed['sentiment_label'] == selected_sentiment]['cleaned_text'].tolist())
-        if text_data:
-            custom_stopwords = set(STOPWORDS); custom_stopwords.add(keyword.lower())
-            wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=custom_stopwords, colormap='viridis').generate(text_data)
-            
-            # Create the figure with a specific size
-            fig_wc, ax = plt.subplots(figsize=(10, 5))
-            ax.imshow(wordcloud, interpolation='bilinear')
-            ax.axis("off")
-            
-            # Display the plot, making it responsive
-            st.pyplot(fig_wc, use_container_width=True)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total Items", len(df_analyzed))
+        c2.metric("Avg. Sentiment", f"{avg_sentiment:.2f}")
+        c3.metric("Dominant Sentiment", sentiment_counts.idxmax())
+        if topic_model:
+            c4.metric("Topics Discovered", len(topic_info[topic_info.Topic != -1]))
         else:
-            st.warning(f"No text data available for '{selected_sentiment}' sentiment in '{keyword}' posts.")
+            c4.metric("Topics Discovered", 0)
+        
+        # Setup tabs
+        tabs_list = ["Sentiment Analysis"]
+        if enable_emotion_sarcasm: tabs_list.append("Emotion & Sarcasm")
+        tabs_list.extend(["Word Clouds", "Topic Modeling"])
+        if enable_ner: tabs_list.append("Entity Analysis")
+        if enable_dtm and topic_model: tabs_list.append("Topic Evolution")
+        
+        tabs = st.tabs(tabs_list)
+        tab_map = {name: tab for name, tab in zip(tabs_list, tabs)}
 
-    with tab_map["Topic Modeling"]:
-        if topic_model and not topic_info.empty:
-            display_topics = topic_info[topic_info.Topic != -1].head(10)
-            st.dataframe(display_topics[['Topic', 'Name', 'Count']].rename(columns={'Name': 'Keywords', 'Count': 'Freq.'}))
-        else:
-            st.info("Topic modeling could not be performed.")
+        with tab_map["Sentiment Analysis"]:
+            fig_pie = px.pie(sentiment_counts, names=sentiment_counts.index, values=sentiment_counts.values, title='Sentiment Proportions', color_discrete_map={'Positive':'green', 'Negative':'red', 'Neutral':'grey'})
+            st.plotly_chart(fig_pie, use_container_width=True, key=f"sentiment_pie_{keyword}")
 
-    if "Entity Analysis" in tab_map:
-        with tab_map["Entity Analysis"]:
-            with st.spinner("Analyzing entities..."):
-                entity_df = analyze_entities_sentiment(df_analyzed, keyword)
-            if not entity_df.empty:
-                fig_ent = px.bar(entity_df.head(15), x='Entity', y='Average_Sentiment', color='Average_Sentiment', color_continuous_scale=px.colors.diverging.RdYlGn, range_color=[-1, 1], title="Sentiment per Entity")
-                st.plotly_chart(fig_ent, use_container_width=True, key=f"entity_bar_{keyword}")
+        if "Emotion & Sarcasm" in tab_map:
+            with tab_map["Emotion & Sarcasm"]:
+                st.subheader("Emotion & Sarcasm Analysis")
+                col1, col2 = st.columns(2)
+                with col1:
+                    emotion_cols = ['anger', 'disgust', 'fear', 'joy', 'neutral', 'sadness', 'surprise']
+                    emotion_means = df_analyzed[emotion_cols].mean().sort_values(ascending=False)
+                    fig_emotion = px.bar(emotion_means, x=emotion_means.index, y=emotion_means.values, title="Average Emotion Distribution", labels={'x': 'Emotion', 'y': 'Average Score'})
+                    st.plotly_chart(fig_emotion, use_container_width=True, key=f"emotion_bar_{keyword}")
+                with col2:
+                    sarcasm_counts = df_analyzed['sarcasm_label'].value_counts()
+                    fig_sarcasm = px.pie(sarcasm_counts, names=sarcasm_counts.index, values=sarcasm_counts.values, title='Sarcasm Detection')
+                    st.plotly_chart(fig_sarcasm, use_container_width=True, key=f"sarcasm_pie_{keyword}")
+
+        with tab_map["Word Clouds"]:
+            selected_sentiment = st.selectbox(f"Select Sentiment for '{keyword}'", ['Positive', 'Negative', 'Neutral'], key=f"wc_select_{keyword}")
+            
+            # Add a theme-aware title using st.subheader
+            st.subheader(f"Word Cloud for '{selected_sentiment}' Sentiment")
+
+            text_data = " ".join(df_analyzed[df_analyzed['sentiment_label'] == selected_sentiment]['cleaned_text'].tolist())
+            if text_data:
+                custom_stopwords = set(STOPWORDS); custom_stopwords.add(keyword.lower())
+                wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=custom_stopwords, colormap='viridis').generate(text_data)
+                
+                # Create the figure with a specific size
+                fig_wc, ax = plt.subplots(figsize=(10, 5))
+                ax.imshow(wordcloud, interpolation='bilinear')
+                ax.axis("off")
+                
+                # Display the plot, making it responsive
+                st.pyplot(fig_wc, use_container_width=True)
             else:
-                st.warning("No significant entities found.")
-    
-    if "Topic Evolution" in tab_map:
-        with tab_map["Topic Evolution"]:
-            with st.spinner("Analyzing topic trends..."):
-                topics_over_time = perform_dynamic_topic_modeling(topic_model, df_analyzed, keyword)
-            if topics_over_time is not None:
-                fig_dtm = topic_model.visualize_topics_over_time(topics_over_time, top_n_topics=10)
-                # Update tooltip for better readability in both light and dark modes
-                fig_dtm.update_layout(
-                    hoverlabel=dict(
-                        bgcolor="lightgrey",
-                        font_color="black"
+                st.warning(f"No text data available for '{selected_sentiment}' sentiment in '{keyword}' posts.")
+
+        with tab_map["Topic Modeling"]:
+            if topic_model and not topic_info.empty:
+                display_topics = topic_info[topic_info.Topic != -1].head(10)
+                st.dataframe(display_topics[['Topic', 'Name', 'Count']].rename(columns={'Name': 'Keywords', 'Count': 'Freq.'}))
+            else:
+                st.info("Topic modeling could not be performed.")
+
+        if "Entity Analysis" in tab_map:
+            with tab_map["Entity Analysis"]:
+                with st.spinner("Analyzing entities..."):
+                    entity_df = analyze_entities_sentiment(df_analyzed, keyword)
+                if not entity_df.empty:
+                    fig_ent = px.bar(entity_df.head(15), x='Entity', y='Average_Sentiment', color='Average_Sentiment', color_continuous_scale=px.colors.diverging.RdYlGn, range_color=[-1, 1], title="Sentiment per Entity")
+                    st.plotly_chart(fig_ent, use_container_width=True, key=f"entity_bar_{keyword}")
+                else:
+                    st.warning("No significant entities found.")
+        
+        if "Topic Evolution" in tab_map:
+            with tab_map["Topic Evolution"]:
+                with st.spinner("Analyzing topic trends..."):
+                    topics_over_time = perform_dynamic_topic_modeling(topic_model, df_analyzed, keyword)
+                if topics_over_time is not None:
+                    fig_dtm = topic_model.visualize_topics_over_time(topics_over_time, top_n_topics=10)
+                    # Update tooltip for better readability in both light and dark modes
+                    fig_dtm.update_layout(
+                        hoverlabel=dict(
+                            bgcolor="lightgrey",
+                            font_color="black"
+                        )
                     )
-                )
-                st.plotly_chart(fig_dtm, use_container_width=True, key=f"dtm_plot_{keyword}")
-            else:
-                st.warning("Could not generate dynamic topic model.")
+                    st.plotly_chart(fig_dtm, use_container_width=True, key=f"dtm_plot_{keyword}")
+                else:
+                    st.warning("Could not generate dynamic topic model.")
 
 # --- Functions needed for the dashboard (placed here for clarity) ---
 @st.cache_data
@@ -345,6 +354,7 @@ def perform_topic_modeling(_df, keyword):
     if len(docs) < 15: return None, pd.DataFrame()
     try:
         topic_model = BERTopic(
+            embedding_model=embedding_model, # Use the pre-loaded model
             vectorizer_model=CountVectorizer(stop_words="english"), 
             calculate_probabilities=True, 
             verbose=False
@@ -379,6 +389,14 @@ def analyze_entities_sentiment(_df, keyword):
 
 
 # -------------------- App Execution --------------------
+if reset_button:
+    # Clear all session state and caches
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    for key in st.session_state.keys():
+        del st.session_state[key]
+    st.rerun()
+
 if start_analysis_button:
     # Clear previous results and cache to force a fresh run
     st.cache_data.clear()

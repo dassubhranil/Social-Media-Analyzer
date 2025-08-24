@@ -346,7 +346,7 @@ def perform_topic_modeling(_df, keyword):
 def perform_dynamic_topic_modeling(_topic_model, _df, keyword):
     if _topic_model is None or _df.empty: return None
     try:
-        return _topic_model.topics_over_time(_df['cleaned_text'].tolist(), _df['timestamp'].tolist())
+        return _topic_model.topics_over_time(_df['cleaned_text'].tolist(), _df['timestamp'].tolist(),nr_bins=20)
     except Exception: return None
 
 @st.cache_data

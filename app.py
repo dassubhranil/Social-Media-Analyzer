@@ -116,8 +116,8 @@ with st.sidebar:
     num_posts = st.slider("Number of items to analyze (per keyword)", 50, 1000, 250)
 
     st.markdown("---")
-    st.header("💡 Advanced Features")
-    enable_ner = st.toggle("Entity Sentiment Analysis (NER)", value=True, help="Uses advanced models and may be slower.")
+    st.header("💡 Advanced Features", help="Uses advanced models and may be slower.")
+    enable_ner = st.toggle("Entity Sentiment Analysis (NER)", value=True)
     enable_dtm = st.toggle("Dynamic Topic Modeling (DTM)", value=True)
     enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True)
     

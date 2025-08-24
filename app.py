@@ -13,7 +13,7 @@ from datetime import datetime
 from transformers import pipeline
 # -------------------- Streamlit Page Configuration --------------------
 st.set_page_config(
-    page_title="Cutting-Edge Social Media Analyzer",
+    page_title=" Social Media Analyzer",
     page_icon="✨",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -75,7 +75,7 @@ if 'analysis_mode' not in st.session_state:
 
 
 # -------------------- Main Title --------------------
-st.title("✨ Cutting-Edge Social Media Sentiment & Trend Analyzer")
+st.title("✨Social Media Sentiment & Trend Analyzer")
 st.markdown("Unlock deeper insights with Emotion Analysis, Sarcasm Detection, and Side-by-Side Keyword Comparison.")
 
 # -------------------- Sidebar for User Inputs --------------------

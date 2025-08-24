@@ -12,6 +12,8 @@ import spacy
 from datetime import datetime
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer
+
+
 # -------------------- Streamlit Page Configuration --------------------
 st.set_page_config(
     page_title="Social Media Analyzer",
@@ -88,7 +90,7 @@ if 'analysis_mode' not in st.session_state:
 
 
 # -------------------- Main Title --------------------
-st.title("✨ Social Media Sentiment & Trend Analyzer")
+st.title("✨Social Media Sentiment & Trend Analyzer")
 st.markdown("Unlock deeper insights with Emotion Analysis, Sarcasm Detection, and Side-by-Side Keyword Comparison.")
 
 # -------------------- Sidebar for User Inputs --------------------
@@ -116,10 +118,10 @@ with st.sidebar:
     num_posts = st.slider("Number of items to analyze (per keyword)", 50, 1000, 250)
 
     st.markdown("---")
-    st.header("💡 Advanced Features", help="Uses advanced models and may be slower.")
+    st.header("💡 Advanced Features", help="Uses advanced models and may be slower.)
     enable_ner = st.toggle("Entity Sentiment Analysis (NER)", value=True)
     enable_dtm = st.toggle("Dynamic Topic Modeling (DTM)", value=True)
-    enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True)
+    enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True")
     
     st.markdown("---")
     
@@ -402,11 +404,16 @@ def analyze_entities_sentiment(_df, keyword):
 
 # -------------------- App Execution --------------------
 if reset_button:
-    # Clear all session state and caches
+    # Explicitly reset all session state variables to their defaults
+    st.session_state.analysis_run = False
+    st.session_state.df1 = pd.DataFrame()
+    st.session_state.df2 = pd.DataFrame()
+    st.session_state.keyword1 = "NVIDIA"
+    st.session_state.keyword2 = "AMD"
+    st.session_state.analysis_mode = "Single Keyword"
+    # Clear caches
     st.cache_data.clear()
     st.cache_resource.clear()
-    for key in st.session_state.keys():
-        del st.session_state[key]
     st.rerun()
 
 if start_analysis_button:

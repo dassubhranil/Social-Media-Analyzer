@@ -114,10 +114,10 @@ with st.expander("⚙️ Settings & Options", expanded=True):
         min_value=50, max_value=1000, value=250, step=50
     )
 
-    st.header("💡 Advanced Features")
+    st.header("💡 Advanced Features", help="Uses smaller, faster models for better performance.")
     enable_ner = st.toggle("Entity Sentiment Analysis (NER)", value=True)
     enable_dtm = st.toggle("Dynamic Topic Modeling (DTM)", value=True)
-    enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True, help="Uses smaller, faster models for better performance.")
+    enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True)
     
     st.markdown("---")
     

@@ -1,11 +1,14 @@
+streamlit
 pandas
 vaderSentiment
 wordcloud
 matplotlib
 plotly
 praw
-bertopic
 scikit-learn
 spacy
 transformers
 torch
+umap-learn
+hdbscan
+bertopic

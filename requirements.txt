@@ -5,6 +5,7 @@ matplotlib
 seaborn
 streamlit
 shap
+bertopic
 joblib
 vaderSentiment 
 WordCloud

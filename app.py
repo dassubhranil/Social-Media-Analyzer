@@ -14,6 +14,7 @@ from transformers import pipeline
 from sentence_transformers import SentenceTransformer
 
 
+
 # -------------------- Streamlit Page Configuration --------------------
 st.set_page_config(
     page_title="Social Media Analyzer",
@@ -147,18 +148,11 @@ def load_transformer_pipelines():
     """Loads Hugging Face transformer models for emotion and sarcasm."""
     emotion_classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
     sarcasm_detector = pipeline("text-classification", model="helinivan/english-sarcasm-detector")
-    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-    return emotion_classifier, sarcasm_detector, embedding_model
+    return emotion_classifier, sarcasm_detector
 
 nlp = load_spacy_model()
 if enable_emotion_sarcasm:
-    emotion_classifier, sarcasm_detector, embedding_model = load_transformer_pipelines()
-else:
-    # Still need the embedding model for BERTopic
-    @st.cache_resource
-    def load_embedding_model():
-        return SentenceTransformer("all-MiniLM-L6-v2")
-    embedding_model = load_embedding_model()
+    emotion_classifier, sarcasm_detector = load_transformer_pipelines()
 
 
 # -------------------- Helper Functions --------------------
@@ -368,7 +362,6 @@ def perform_topic_modeling(_df, keyword):
     if len(docs) < 15: return None, pd.DataFrame()
     try:
         topic_model = BERTopic(
-            embedding_model=embedding_model, # Use the pre-loaded model
             vectorizer_model=CountVectorizer(stop_words="english"), 
             calculate_probabilities=True, 
             verbose=False
@@ -461,6 +454,7 @@ if st.session_state.analysis_run:
             display_dashboard(st.session_state.keyword2, st.session_state.df2)
     else:
         display_dashboard(st.session_state.keyword1, st.session_state.df1)
+
 
 # -------------------- Footer --------------------
 st.markdown("---")

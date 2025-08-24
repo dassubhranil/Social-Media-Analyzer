@@ -120,7 +120,7 @@ with st.sidebar:
         reset_button = st.button("Reset")
 
     st.markdown("---")
-    st.info("This app uses Reddit credentials stored securely via Streamlit Secrets.", icon="�")
+    st.info("This app uses Reddit credentials stored securely via Streamlit Secrets.", icon="🔐")
 
 
 # -------------------- Model Loading (Cached) --------------------

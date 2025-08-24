@@ -11,6 +11,8 @@ import re
 import spacy
 from datetime import datetime
 from transformers import pipeline
+from sentence_transformers import SentenceTransformer
+
 
 # -------------------- Streamlit Page Configuration --------------------
 st.set_page_config(

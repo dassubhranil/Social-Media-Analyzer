@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -18,17 +17,13 @@ from sentence_transformers import SentenceTransformer
 st.set_page_config(
     page_title="Cutting-Edge Social Media Analyzer",
     page_icon="✨",
-    layout="wide",
-    initial_sidebar_state="collapsed" # Collapse sidebar by default
+    layout="wide"
 )
 
 # -------------------- Custom CSS for Styling --------------------
 st.markdown("""
 <style>
     .reportview-container {
-        background: #f0f2f6;
-    }
-    .sidebar .sidebar-content {
         background: #f0f2f6;
     }
     .stButton>button {

@@ -117,12 +117,12 @@ with st.sidebar:
             keyword2 = st.text_input("Enter Keyword 2", value=st.session_state.keyword2)
 
         num_posts = st.number_input(
-            "Number of items to analyze (per keyword)",
-            min_value=50,
-            max_value=1000,
-            value=250,
-            step=50
-        )
+    "Number of items to analyze (per keyword)",
+    min_value=50,
+    max_value=1000,
+    value=250,
+    step=50
+)
 
     st.markdown("---")
     st.header("💡 Advanced Features", help="Uses advanced models and may be slower.")

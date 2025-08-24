@@ -12,8 +12,6 @@ import spacy
 from datetime import datetime
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer
-
-
 # -------------------- Streamlit Page Configuration --------------------
 st.set_page_config(
     page_title="Social Media Analyzer",
@@ -59,6 +57,18 @@ st.markdown("""
     .footer svg {
         vertical-align: middle;
     }
+    /* Reduce font size for metrics */
+    [data-testid="stMetricValue"] {
+        font-size: 1.75rem;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 0.8rem;
+    }
+    /* Make tabs horizontally scrollable on smaller screens */
+    div[role="tablist"] {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -78,7 +88,7 @@ if 'analysis_mode' not in st.session_state:
 
 
 # -------------------- Main Title --------------------
-st.title("✨Social Media Sentiment & Trend Analyzer")
+st.title("✨ Social Media Sentiment & Trend Analyzer")
 st.markdown("Unlock deeper insights with Emotion Analysis, Sarcasm Detection, and Side-by-Side Keyword Comparison.")
 
 # -------------------- Sidebar for User Inputs --------------------
@@ -106,8 +116,8 @@ with st.sidebar:
     num_posts = st.slider("Number of items to analyze (per keyword)", 50, 1000, 250)
 
     st.markdown("---")
-    st.header("💡 Advanced Features", help="Uses advanced models and may be slower.")
-    enable_ner = st.toggle("Entity Sentiment Analysis (NER)", value=True)
+    st.header("💡 Advanced Features")
+    enable_ner = st.toggle("Entity Sentiment Analysis (NER)", value=True, help="Uses advanced models and may be slower.")
     enable_dtm = st.toggle("Dynamic Topic Modeling (DTM)", value=True)
     enable_emotion_sarcasm = st.toggle("Emotion & Sarcasm Analysis", value=True)
     

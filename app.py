@@ -317,23 +317,25 @@ def display_dashboard(keyword, df):
                 st.info("Topic modeling could not be performed.")
 
         if "Entity Analysis" in tab_map:
-            with st.spinner("Analyzing entities..."):
-                entity_df = analyze_entities_sentiment(df_analyzed, keyword)
-            if not entity_df.empty:
-                fig_ent = px.bar(entity_df.head(15), x='Entity', y='Average_Sentiment', color='Average_Sentiment', color_continuous_scale=px.colors.diverging.RdYlGn, range_color=[-1, 1], title="Sentiment per Entity")
-                st.plotly_chart(fig_ent, use_container_width=True, key=f"entity_bar_{keyword}")
-            else:
-                st.warning("No significant entities found.")
+            with tab_map["Entity Analysis"]:
+                with st.spinner("Analyzing entities..."):
+                    entity_df = analyze_entities_sentiment(df_analyzed, keyword)
+                if not entity_df.empty:
+                    fig_ent = px.bar(entity_df.head(15), x='Entity', y='Average_Sentiment', color='Average_Sentiment', color_continuous_scale=px.colors.diverging.RdYlGn, range_color=[-1, 1], title="Sentiment per Entity")
+                    st.plotly_chart(fig_ent, use_container_width=True, key=f"entity_bar_{keyword}")
+                else:
+                    st.warning("No significant entities found.")
         
         if "Topic Evolution" in tab_map:
-            with st.spinner("Analyzing topic trends..."):
-                topics_over_time = perform_dynamic_topic_modeling(topic_model, df_analyzed, keyword)
-            if topics_over_time is not None:
-                fig_dtm = topic_model.visualize_topics_over_time(topics_over_time, top_n_topics=10)
-                fig_dtm.update_layout(hoverlabel=dict(bgcolor="lightgrey", font_color="black"))
-                st.plotly_chart(fig_dtm, use_container_width=True, key=f"dtm_plot_{keyword}")
-            else:
-                st.warning("Could not generate dynamic topic model.")
+            with tab_map["Topic Evolution"]:
+                with st.spinner("Analyzing topic trends..."):
+                    topics_over_time = perform_dynamic_topic_modeling(topic_model, df_analyzed, keyword)
+                if topics_over_time is not None:
+                    fig_dtm = topic_model.visualize_topics_over_time(topics_over_time, top_n_topics=10)
+                    fig_dtm.update_layout(hoverlabel=dict(bgcolor="lightgrey", font_color="black"))
+                    st.plotly_chart(fig_dtm, use_container_width=True, key=f"dtm_plot_{keyword}")
+                else:
+                    st.warning("Could not generate dynamic topic model.")
 
 # --- Functions needed for the dashboard (placed here for clarity) ---
 @st.cache_data
@@ -432,13 +434,11 @@ if st.session_state.get('analysis_run', False):
 # -------------------- Footer --------------------
 st.markdown("---")
 
-# Replace with your actual profile URLs
 LINKEDIN_URL = "https://www.linkedin.com/in/subhranil-das/"
 GITHUB_URL = "https://github.com/dassubhranil"
 
-# SVG Icons
-linkedin_svg = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-linkedin"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>"""
-github_svg = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-github"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>"""
+linkedin_svg = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-linkedin"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>"""
+github_svg = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-github"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>"""
 
 footer_html = f"""
 <div class="footer">
@@ -446,7 +446,7 @@ footer_html = f"""
     <p>Connect with me:</p>
     <a href="{LINKEDIN_URL}" target="_blank">{linkedin_svg} LinkedIn</a>
     <a href="{GITHUB_URL}" target="_blank">{github_svg} GitHub</a>
-    <p>                                                        </p>
+    <p>                                          </p>
     <p>© 2025 All rights reserved.</p>
 </div>
 """
